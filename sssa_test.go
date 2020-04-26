@@ -1,6 +1,7 @@
 package sssa
 
 import (
+	"bytes"
 	"testing"
 )
 
@@ -24,7 +25,7 @@ func TestCreateCombine(t *testing.T) {
 		if err != nil {
 			t.Fatal("Fatal: combining: ", err)
 		}
-		if combined != strings[i] {
+		if string(combined) != strings[i] {
 			t.Fatal("Fatal: combining returned invalid data")
 		}
 	}
@@ -43,7 +44,7 @@ func TestLibraryCombine(t *testing.T) {
 	if err != nil {
 		t.Fatal("Fatal: combining: ", err)
 	}
-	if combined != "test-pass" {
+	if bytes.Compare(combined, []byte("test-pass")) != 0 {
 		t.Fatal("Failed library cross-language check")
 	}
 }

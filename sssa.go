@@ -5,21 +5,26 @@ import (
 	"math/big"
 )
 
+// exported errors
 var (
 	ErrCannotRequireMoreShares = errors.New("cannot require more shares then existing")
 	ErrOneOfTheSharesIsInvalid = errors.New("one of the shares is invalid")
 )
 
+// secure prime number
 const (
 	DefaultPrimeStr = "115792089237316195423570985008687907853269984665640564039457584007913129639747"
 )
 
-/**
- * Returns a new arary of secret shares (encoding x,y pairs as base64 strings)
- * created by Shamir's Secret Sharing Algorithm requring a minimum number of
- * share to recreate, of length shares, from the input secret raw as a string
-**/
+// Create returns a new array of secret shares (encoding x,y pairs as base64 strings)
+// created by Shamir's Secret Sharing Algorithm requring a minimum number of
+// share to recreate, of length shares, from the input secret raw as a string
 func Create(minimum int, shares int, raw string) ([]string, error) {
+	return CreateFromBytes(minimum, shares, []byte(raw))
+}
+
+// CreateFromBytes allows the creation of the shares from an array of bytes
+func CreateFromBytes(minimum int, shares int, raw []byte) ([]string, error) {
 	// Verify minimum isn't greater than shares; there is no way to recreate
 	// the original polynomial in our current setup, therefore it doesn't make
 	// sense to generate fewer shares than are needed to reconstruct the secret.
@@ -28,7 +33,7 @@ func Create(minimum int, shares int, raw string) ([]string, error) {
 	}
 
 	// Convert the secret to its respective 256-bit big.Int representation
-	var secret []*big.Int = splitByteToInt([]byte(raw))
+	var secret []*big.Int = splitByteToInt(raw)
 
 	// Set constant prime across the package
 	prime, _ = big.NewInt(0).SetString(DefaultPrimeStr, 10)
@@ -101,16 +106,13 @@ func Create(minimum int, shares int, raw string) ([]string, error) {
 	return result, nil
 }
 
-/**
- * Takes a string array of shares encoded in base64 created via Shamir's
- * Algorithm; each string must be of equal length of a multiple of 88 characters
- * as a single 88 character share is a pair of 256-bit numbers (x, y).
- *
- * Note: the polynomial will converge if the specified minimum number of shares
- *       or more are passed to this function. Passing thus does not affect it
- *       Passing fewer however, simply means that the returned secret is wrong.
-**/
-func Combine(shares []string) (string, error) {
+// Combine takes a string array of shares encoded in base64 created via Shamir's
+// Algorithm; each string must be of equal length of a multiple of 88 characters
+// as a single 88 character share is a pair of 256-bit numbers (x, y).
+// Note: the polynomial will converge if the specified minimum number of shares
+//       or more are passed to this function. Passing thus does not affect it
+//       Passing fewer however, simply means that the returned secret is wrong.
+func Combine(shares []string) ([]byte, error) {
 	// Recreate the original object of x, y points, based upon number of shares
 	// and size of each share (number of parts in the secret).
 	var secrets [][][]*big.Int = make([][][]*big.Int, len(shares))
@@ -122,7 +124,7 @@ func Combine(shares []string) (string, error) {
 	for i := range shares {
 		// ...ensure that it is valid...
 		if IsValidShare(shares[i]) == false {
-			return "", ErrOneOfTheSharesIsInvalid
+			return []byte{}, ErrOneOfTheSharesIsInvalid
 		}
 
 		// ...find the number of parts it represents...
@@ -183,18 +185,14 @@ func Combine(shares []string) (string, error) {
 	}
 
 	// ...and return the result!
-	return string(mergeIntToByte(secret)), nil
+	return mergeIntToByte(secret), nil
 }
 
-/**
- * Takes in a given string to check if it is a valid secret
- *
- * Requirements:
- * 	Length multiple of 88
- *	Can decode each 44 character block as base64
- *
- * Returns only success/failure (bool)
-**/
+// IsValidShare takes in a given string to check if it is a valid secret
+// Requirements:
+// Length multiple of 88
+// 	Can decode each 44 character block as base64
+// Returns only success/failure (bool)
 func IsValidShare(candidate string) bool {
 	// Set constant prime across the package
 	prime, _ = big.NewInt(0).SetString(DefaultPrimeStr, 10)
